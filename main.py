@@ -49,10 +49,23 @@ Base.metadata.create_all(bind=engine)
 
 # ---------------- Schemas ---------------- #
 
-class CallReportUpdate(BaseModel):
+class CallReportResponse(BaseModel):
+    asset_id: str
     asset_status: Optional[str]
     last_movement_reason: Optional[str]
-    modified_time: Optional[datetime] = None
+    registration_number: Optional[str]
+    vin_number: Optional[str]
+    asset_type: Optional[str]
+    engine_number: Optional[str]
+    asset_make: Optional[str]
+    asset_model: Optional[str]
+    asset_shape: Optional[str]
+    modified_time: Optional[datetime]
+    updatedAt: Optional[datetime]
+
+    model_config = {
+        "from_attributes": True
+    }
 
 class CallReportResponse(BaseModel):
     asset_id: str
