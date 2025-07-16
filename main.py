@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, Header, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
-from sqlalchemy import create_engine, Column, String, Float, DateTime, Text
+from sqlalchemy import create_engine, Column, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
@@ -63,18 +63,13 @@ class CallReportResponse(BaseModel):
     modified_time: Optional[datetime]
     updatedAt: Optional[datetime]
 
-    model_config = {
-        "from_attributes": True
-    }
-
-class CallReportResponse(BaseModel):
-    asset_id: str
-    asset_status: Optional[str]
-    last_movement_reason: Optional[str]
-    registration_number: Optional[str]
-
     class Config:
         orm_mode = True
+
+class CallReportUpdate(BaseModel):
+    asset_status: Optional[str]
+    last_movement_reason: Optional[str]
+    modified_time: Optional[datetime] = datetime.utcnow()
 
 # ---------------- Dependencies ---------------- #
 
