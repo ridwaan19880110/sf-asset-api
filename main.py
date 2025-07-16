@@ -7,11 +7,15 @@ from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
 import secrets
 
+# ---------------- Database Setup ---------------- #
+
 DATABASE_URL = "mysql+pymysql://remote_root:koK3MUkW186JlS@72.18.214.201:3306/mnc_report"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
+
+# ---------------- FastAPI App ---------------- #
 
 app = FastAPI()
 
@@ -30,16 +34,17 @@ class CallReport(Base):
     asset_make = Column(String(100))
     asset_model = Column(String(100))
     asset_shape = Column(String(50))
-    # ... Add other columns as needed
     modified_time = Column(DateTime)
     updatedAt = Column(DateTime)
 
 class APIKey(Base):
     __tablename__ = "api_keys"
+
     key = Column(String(64), primary_key=True, index=True)
     owner = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
 
+# Ensure tables exist
 Base.metadata.create_all(bind=engine)
 
 # ---------------- Schemas ---------------- #
@@ -47,7 +52,7 @@ Base.metadata.create_all(bind=engine)
 class CallReportUpdate(BaseModel):
     asset_status: Optional[str]
     last_movement_reason: Optional[str]
-    modified_time: Optional[datetime] = datetime.utcnow()
+    modified_time: Optional[datetime] = None
 
 class CallReportResponse(BaseModel):
     asset_id: str
@@ -55,9 +60,8 @@ class CallReportResponse(BaseModel):
     last_movement_reason: Optional[str]
     registration_number: Optional[str]
 
-    model_config = {
-        "from_attributes": True
-    }
+    class Config:
+        orm_mode = True
 
 # ---------------- Dependencies ---------------- #
 
@@ -76,6 +80,10 @@ def validate_api_key(x_api_key: str = Header(...), db: Session = Depends(get_db)
 
 # ---------------- Endpoints ---------------- #
 
+@app.get("/")
+def root():
+    return {"message": "SF Asset API is running."}
+
 @app.get("/assets", response_model=List[CallReportResponse])
 def get_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
     return db.query(CallReport).all()
@@ -85,10 +93,10 @@ def update_asset(asset_id: str, payload: CallReportUpdate, db: Session = Depends
     asset = db.query(CallReport).filter(CallReport.asset_id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     for key, value in payload.dict(exclude_unset=True).items():
         setattr(asset, key, value)
-    
+
     asset.updatedAt = datetime.utcnow()
     db.commit()
     db.refresh(asset)
