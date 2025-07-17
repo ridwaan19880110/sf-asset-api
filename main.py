@@ -33,7 +33,7 @@ class CallReport(Base):
     engine_number = Column(String(100))
     asset_make = Column(String(100))
     asset_model = Column(String(100))
-    asset_shape = Column(String(50))
+    current_odo = Column(String(100))
     linked_driver_id = Column(String(50))
     modified_time = Column(DateTime)
     updatedAt = Column(DateTime)
@@ -67,7 +67,7 @@ class CallReportResponse(BaseModel):
     engine_number: Optional[str]
     asset_make: Optional[str]
     asset_model: Optional[str]
-    asset_shape: Optional[str]
+    current_odo: Optional[str]
     modified_time: Optional[datetime]
     updatedAt: Optional[datetime]
     full_name: Optional[str]
@@ -104,7 +104,7 @@ def root():
     return {"message": "SF Asset API is running."}
 
 @app.get("/assets", response_model=List[CallReportResponse])
-def get_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
+def get_active_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
     Driver = aliased(SimplyfleetDriver)
     query = (
         db.query(
@@ -117,7 +117,7 @@ def get_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validat
             CallReport.engine_number,
             CallReport.asset_make,
             CallReport.asset_model,
-            CallReport.asset_shape,
+            CallReport.current_odo,
             CallReport.modified_time,
             CallReport.updatedAt,
             Driver.full_name,
@@ -126,6 +126,7 @@ def get_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validat
         )
         .outerjoin(Driver, Driver.id == CallReport.linked_driver_id)
         .filter(CallReport.asset_make == "Toyota")
+        .filter(CallReport.asset_status == "Active")
     )
     return query.all()
 
