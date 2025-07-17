@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, Header, HTTPException
+from fastapi import FastAPI, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from sqlalchemy import create_engine, Column, String, DateTime
+from sqlalchemy import create_engine, Column, String, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, aliased
 from datetime import datetime
@@ -33,7 +33,7 @@ class CallReport(Base):
     engine_number = Column(String(100))
     asset_make = Column(String(100))
     asset_model = Column(String(100))
-    current_odo = Column(String(100))
+    current_odo = Column(Integer)
     linked_driver_id = Column(String(50))
     modified_time = Column(DateTime)
     updatedAt = Column(DateTime)
@@ -143,6 +143,42 @@ def update_asset(asset_id: str, payload: CallReportUpdate, db: Session = Depends
     db.commit()
     db.refresh(asset)
     return asset
+
+@app.put("/assets/odo/{registration_number}", response_model=CallReportResponse)
+def update_current_odo(
+    registration_number: str,
+    current_odo: int = Query(..., description="New ODO reading"),
+    db: Session = Depends(get_db),
+    _: APIKey = Depends(validate_api_key)
+):
+    asset = db.query(CallReport).filter(CallReport.registration_number == registration_number).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset.current_odo = current_odo
+    asset.updatedAt = datetime.utcnow()
+    db.commit()
+    db.refresh(asset)
+
+    driver = db.query(SimplyfleetDriver).filter(SimplyfleetDriver.id == asset.linked_driver_id).first()
+
+    return CallReportResponse(
+        asset_id=asset.asset_id,
+        asset_status=asset.asset_status,
+        last_movement_reason=asset.last_movement_reason,
+        registration_number=asset.registration_number,
+        vin_number=asset.vin_number,
+        asset_type=asset.asset_type,
+        engine_number=asset.engine_number,
+        asset_make=asset.asset_make,
+        asset_model=asset.asset_model,
+        current_odo=asset.current_odo,
+        modified_time=asset.modified_time,
+        updatedAt=asset.updatedAt,
+        full_name=driver.full_name if driver else None,
+        phone=driver.whatsapp_number if driver else None,
+        email=driver.email if driver else None,
+    )
 
 @app.post("/generate-key")
 def generate_key(owner: str, db: Session = Depends(get_db)):
