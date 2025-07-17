@@ -67,7 +67,7 @@ class CallReportResponse(BaseModel):
     engine_number: Optional[str]
     asset_make: Optional[str]
     asset_model: Optional[str]
-    current_odo: Optional[str]
+    current_odo: Optional[int]
     modified_time: Optional[datetime]
     updatedAt: Optional[datetime]
     full_name: Optional[str]
