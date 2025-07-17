@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, Header, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
-from sqlalchemy import create_engine, Column, String, DateTime
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, relationship
 from datetime import datetime
 import secrets
 
@@ -21,6 +21,14 @@ app = FastAPI()
 
 # ---------------- Models ---------------- #
 
+class Driver(Base):
+    __tablename__ = "simplyfleet_driver"
+
+    id = Column(String(50), primary_key=True, index=True)
+    name = Column(String(100))
+    phone = Column(String(20))
+    email = Column(String(100))  # Add more fields as needed
+
 class CallReport(Base):
     __tablename__ = "simplyfleet"
 
@@ -34,8 +42,11 @@ class CallReport(Base):
     asset_make = Column(String(100))
     asset_model = Column(String(100))
     asset_shape = Column(String(50))
+    linked_driver_id = Column(String(50), ForeignKey("simplyfleet_driver.id"))
     modified_time = Column(DateTime)
     updatedAt = Column(DateTime)
+
+    driver = relationship("Driver", lazy="joined")
 
 class APIKey(Base):
     __tablename__ = "api_keys"
@@ -44,10 +55,16 @@ class APIKey(Base):
     owner = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
 
-# Ensure tables exist
-Base.metadata.create_all(bind=engine)
-
 # ---------------- Schemas ---------------- #
+
+class DriverResponse(BaseModel):
+    id: str
+    name: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+
+    class Config:
+        orm_mode = True
 
 class CallReportResponse(BaseModel):
     asset_id: str
@@ -62,6 +79,7 @@ class CallReportResponse(BaseModel):
     asset_shape: Optional[str]
     modified_time: Optional[datetime]
     updatedAt: Optional[datetime]
+    driver: Optional[DriverResponse]
 
     class Config:
         orm_mode = True
@@ -94,7 +112,12 @@ def root():
 
 @app.get("/assets", response_model=List[CallReportResponse])
 def get_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
-    return db.query(CallReport).filter(CallReport.asset_make == "Toyota").all()
+    return (
+        db.query(CallReport)
+        .join(Driver, isouter=True)
+        .filter(CallReport.asset_make == "Toyota")
+        .all()
+    )
 
 @app.put("/assets/{asset_id}", response_model=CallReportResponse)
 def update_asset(asset_id: str, payload: CallReportUpdate, db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
