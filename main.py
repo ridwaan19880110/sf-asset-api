@@ -93,8 +93,8 @@ def root():
     return {"message": "SF Asset API is running."}
 
 @app.get("/assets", response_model=List[CallReportResponse])
-def get_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
-    return db.query(CallReport).all()
+def get_toyota_assets(db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
+    return db.query(CallReport).filter(CallReport.asset_make == "Toyota").all()
 
 @app.put("/assets/{asset_id}", response_model=CallReportResponse)
 def update_asset(asset_id: str, payload: CallReportUpdate, db: Session = Depends(get_db), _: APIKey = Depends(validate_api_key)):
